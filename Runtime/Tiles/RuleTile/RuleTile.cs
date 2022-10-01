@@ -44,6 +44,10 @@ namespace UnityEngine
         /// The Default Collider Type set when creating a new Rule.
         /// </summary>
         public Tile.ColliderType m_DefaultColliderType = Tile.ColliderType.Sprite;
+        /// <summary>
+        /// The Sibling Tiles that this RuleTile treats like itself for neighbor checks
+        /// </summary>
+        public List<TileBase> m_SiblingTiles = new List<TileBase>();
 
         /// <summary>
         /// Angle in which the RuleTile is rotated by for matching in Degrees.
@@ -711,8 +715,8 @@ namespace UnityEngine
 
             switch (neighbor)
             {
-                case TilingRuleOutput.Neighbor.This: return other == this;
-                case TilingRuleOutput.Neighbor.NotThis: return other != this;
+                case TilingRuleOutput.Neighbor.This: return other == this || m_SiblingTiles.Contains(other);
+                case TilingRuleOutput.Neighbor.NotThis: return other != this && !m_SiblingTiles.Contains(other);
             }
             return true;
         }

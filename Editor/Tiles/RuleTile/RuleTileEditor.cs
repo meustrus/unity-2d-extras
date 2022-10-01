@@ -94,6 +94,7 @@ namespace UnityEditor
                     "Drag Sprite or Sprite Texture assets \n" +
                     " to start creating a Rule Tile.");
             
+            public static readonly GUIContent siblingTiles = EditorGUIUtility.TrTextContent("Sibling Tiles");
             public static readonly GUIContent extendNeighbor = EditorGUIUtility.TrTextContent("Extend Neighbor"
                 , "Enabling this allows you to increase the range of neighbors beyond the 3x3 box.");
 
@@ -161,6 +162,10 @@ namespace UnityEditor
         /// </summary>
         private ReorderableList m_ReorderableList;
         /// <summary>
+        /// Reorderable list for Siblings
+        /// </summary>
+        private ReorderableList m_ReorderableListSiblingTiles;
+        /// <summary>
         /// Whether the RuleTile can extend its neighbors beyond directly adjacent ones
         /// </summary>
         public bool extendNeighbor;
@@ -214,6 +219,12 @@ namespace UnityEditor
             m_ReorderableList.elementHeightCallback = GetElementHeight;
             m_ReorderableList.onChangedCallback = ListUpdated;
             m_ReorderableList.onAddDropdownCallback = OnAddDropdownElement;
+
+            m_ReorderableListSiblingTiles = new ReorderableList(tile != null ? tile.m_SiblingTiles : null, typeof(GameObject), true, true, true, true);
+            m_ReorderableListSiblingTiles.drawHeaderCallback = SiblingTilesOnDrawHeader;
+            m_ReorderableListSiblingTiles.drawElementCallback = SiblingTileOnDrawElement;
+            m_ReorderableListSiblingTiles.elementHeightCallback = SiblingTileGetElementHeight;
+            m_ReorderableListSiblingTiles.onAddDropdownCallback = SiblingTileOnAddDropdownElement;
 
             // Required to adjust element height changes
             var rolType = GetType("UnityEditorInternal.ReorderableList");
@@ -310,6 +321,16 @@ namespace UnityEditor
         }
 
         /// <summary>
+        /// Gets the GUI element height for a SiblingTile
+        /// </summary>
+        /// <param name="rule">Rule to get height for</param>
+        /// <returns>GUI element height for a TilingRule</returns>
+        public float SiblingTileGetElementHeight(int index)
+        {
+            return k_SingleLineHeight + k_PaddingBetweenRules;
+        }
+
+        /// <summary>
         /// Gets the GUI element height for a TilingRuleOutput 
         /// </summary>
         /// <param name="rule">Rule to get height for</param>
@@ -362,6 +383,19 @@ namespace UnityEditor
             RuleInspectorOnGUI(inspectorRect, rule);
             RuleMatrixOnGUI(tile, matrixRect, bounds, rule);
             SpriteOnGUI(spriteRect, rule);
+        }
+
+        /// <summary>
+        /// Draws the TileBase element for the SiblingTile list
+        /// </summary>
+        /// <param name="rect">Rect to draw the Rule Element in</param>
+        /// <param name="index">Index of the Rule Element to draw</param>
+        /// <param name="isactive">Whether the Rule Element is active</param>
+        /// <param name="isfocused">Whether the Rule Element is focused</param>
+        protected virtual void SiblingTileOnDrawElement(Rect rect, int index, bool isactive, bool isfocused)
+        {
+            float y = rect.yMin + 2f;
+            tile.m_SiblingTiles[index] = (TileBase)EditorGUI.ObjectField(new Rect(rect.xMin, y, rect.width, k_SingleLineHeight), "", tile.m_SiblingTiles[index], typeof(TileBase), false);
         }
 
         private void OnAddElement(object obj)
@@ -420,6 +454,11 @@ namespace UnityEditor
             {
                 OnAddElement(list);
             }
+        }
+        
+        private void SiblingTileOnAddDropdownElement(Rect rect, ReorderableList list)
+        {
+            tile.m_SiblingTiles.Add(null);
         }
         
         /// <summary>
@@ -498,8 +537,20 @@ namespace UnityEditor
             if (EditorGUI.EndChangeCheck())
             {
                 if (m_ClearCacheMethod != null)
-                    m_ClearCacheMethod.Invoke(m_ReorderableList, null);  
+                {
+                    m_ClearCacheMethod.Invoke(m_ReorderableList, null);
+                    m_ClearCacheMethod.Invoke(m_ReorderableListSiblingTiles, null);
+                }
             }
+        }
+
+        /// <summary>
+        /// Draws the header for the SiblingTiles list
+        /// </summary>
+        /// <param name="rect">GUI Rect to draw the header at</param>
+        public void SiblingTilesOnDrawHeader(Rect rect)
+        {
+            GUI.Label(rect, Styles.siblingTiles);
         }
 
         /// <summary>
@@ -519,7 +570,7 @@ namespace UnityEditor
             DrawCustomFields(false);
 
             EditorGUILayout.Space();
-            
+
             EditorGUI.BeginChangeCheck();
             int count = EditorGUILayout.DelayedIntField(Styles.numberOfTilingRules, tile.m_TilingRules?.Count ?? 0);
             if (count < 0)
@@ -543,6 +594,11 @@ namespace UnityEditor
 
             if (m_ReorderableList != null)
                 m_ReorderableList.DoLayoutList();
+
+            if (m_ReorderableListSiblingTiles != null) {
+                EditorGUILayout.Space();
+                m_ReorderableListSiblingTiles.DoLayoutList();
+            }
 
             if (EditorGUI.EndChangeCheck())
                 SaveTile();
